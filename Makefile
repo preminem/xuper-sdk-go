@@ -23,6 +23,7 @@ test:
 	go test github.com/xuperchain/xuper-sdk-go/contract_account
 	go test github.com/xuperchain/xuper-sdk-go/contract
 	go test github.com/xuperchain/xuper-sdk-go/event
+	go test github.com/xuperchain/xuper-sdk-go/cross_query
 	go test github.com/xuperchain/xuper-sdk-go/xchain
 
 clean:
