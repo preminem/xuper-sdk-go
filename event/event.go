@@ -208,15 +208,17 @@ func (w *Watcher) RegisterBlockEvent(filter *pb.BlockFilter, skipEmptyTx bool) (
 	}
 
 	go func() {
+		defer func() {
+			close(filteredBlockChan)
+			if err := stream.CloseSend(); err != nil {
+				log.Printf("Unregister block event failed, close stream error: %v", err)
+			} else {
+				log.Printf("Unregister block event success...")
+			}
+		}()
 		for {
 			select {
 			case <-exit:
-				close(filteredBlockChan)
-				if err := stream.CloseSend(); err != nil {
-					log.Printf("Unregister block event failed, close stream error: %v", err)
-				} else {
-					log.Printf("Unregister block event success...")
-				}
 				return
 			default:
 				event, err := stream.Recv()
