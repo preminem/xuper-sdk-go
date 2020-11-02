@@ -19,6 +19,7 @@ import (
 type Watcher struct {
 	eventClient             pb.EventServiceClient
 	eventConsumerBufferSize uint
+	eventConn               *grpc.ClientConn
 }
 
 // Registration is a handle that is returned from a successful RegisterBlockEvent.
@@ -84,6 +85,7 @@ func InitWatcher(node string, eventConsumerBufferSize uint) (*Watcher, error) {
 	return &Watcher{
 		eventClient:             pb.NewEventServiceClient(conn),
 		eventConsumerBufferSize: eventConsumerBufferSize,
+		eventConn:               conn,
 	}, nil
 }
 
@@ -211,6 +213,8 @@ func (w *Watcher) RegisterBlockEvent(filter *pb.BlockFilter, skipEmptyTx bool) (
 		defer func() {
 			close(filteredBlockChan)
 			if err := stream.CloseSend(); err != nil {
+				log.Printf("Unregister block event failed, close stream error: %v", err)
+			} else if err := w.eventConn.Close(); err != nil {
 				log.Printf("Unregister block event failed, close stream error: %v", err)
 			} else {
 				log.Printf("Unregister block event success...")
