@@ -3,39 +3,19 @@ package cross_query
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"sync"
-	"time"
-
-	"github.com/golang/protobuf/proto"
-	"google.golang.org/grpc"
 
 	crypto_client "github.com/xuperchain/xuper-sdk-go/crypto"
 	"github.com/xuperchain/xuper-sdk-go/pb"
 )
 
-const (
-	endorserTimeOut = 6 * time.Second
-)
-
 type queryRes struct {
 	queryRes *pb.CrossQueryResponse
 	signs    *pb.SignatureInfo
-}
-
-// newEndorsorConn return EndorsorClient
-func newEndorsorConn(addr string) (*grpc.ClientConn, error) {
-	conn := &grpc.ClientConn{}
-	options := append([]grpc.DialOption{}, grpc.WithInsecure())
-	conn, err := grpc.Dial(addr, options...)
-	if err != nil {
-		return nil, errors.New("New grpcs conn error")
-	}
-	return conn, nil
 }
 
 // CrossQuery query contract from otherchain
@@ -57,11 +37,6 @@ func CrossQuery(crossQueryRequest *pb.CrossQueryRequest, queryMeta *pb.CrossQuer
 		return nil, fmt.Errorf("isCossQueryValid check failed")
 	}
 	return queryInfo, nil
-}
-
-// isQueryParamValid 验证 query meta 背书策略是否有效
-func isQueryMetaValid(queryMeta *pb.CrossQueryMeta) bool {
-	return len(queryMeta.GetEndorsors()) >= int(queryMeta.GetChainMeta().GetMinEndorsorNum())
 }
 
 // crossQueryFromEndorsor will query cross from endorsor
@@ -222,7 +197,7 @@ func isEndorsorSignValid(signsValid []*pb.SignatureInfo, queryInfo *pb.CrossQuer
 	}
 	cryptoClient := crypto_client.GetCryptoClient()
 	data := append(reqData[:], resData[:]...)
-	digest := UsingSha256(data)
+	digest := usingSha256(data)
 	for idx := range signsValid {
 		pk, err := cryptoClient.GetEcdsaPublicKeyFromJsonStr(signsValid[idx].GetPublicKey())
 		if err != nil {
@@ -251,28 +226,6 @@ func isCrossQueryResponseEqual(a, b *pb.CrossQueryResponse) bool {
 	return true
 }
 
-func isMsgEqual(reqHead, reqIncome proto.Message) bool {
-	encodeHead, err := encodeMsg(reqHead)
-	if err != nil {
-		return false
-	}
-	encodeIncome, err := encodeMsg(reqIncome)
-	if err != nil {
-		return false
-	}
-	return bytes.Equal(encodeHead, encodeIncome)
-}
-
-func encodeMsg(req proto.Message) ([]byte, error) {
-	var buf proto.Buffer
-	buf.SetDeterministic(true)
-	err := buf.EncodeMessage(req)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
 func GenerateInvokeIR(args map[string]string, methodName, contractName string) *pb.InvokeRequest {
 	return &pb.InvokeRequest{
 		ModuleName:   "wasm",
@@ -288,13 +241,4 @@ func convertToXuperContractArgs(args map[string]string) map[string][]byte {
 		argmap[k] = []byte(v)
 	}
 	return argmap
-}
-
-// UsingSha256 get the hash result of data using SHA256
-func UsingSha256(data []byte) []byte {
-	h := sha256.New()
-	h.Write(data)
-	out := h.Sum(nil)
-
-	return out
 }
